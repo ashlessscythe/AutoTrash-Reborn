@@ -125,7 +125,7 @@ function presets.export(preset, name)
     local stack = inventory[1]
     stack.set_blueprint_entities(bp)
     stack.label = name
-    stack.blueprint_icons = icons
+    stack.preview_icons = icons
     local result = stack.export_stack()
     inventory.destroy()
     return result
