@@ -1,6 +1,9 @@
 local constants = {}
 
 constants.max_request = 4294967295
+constants.AUTOTRASH_SECTION_GROUP = "AutoTrash"
+-- Fixed packing size for blueprint constant-combinators (item_slot_count removed in 2.0)
+constants.COMBINATOR_SLOT_COUNT = 20
 
 constants.quick_actions = {
     [1] = {"at-gui.quick-actions"},

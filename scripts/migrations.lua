@@ -10,23 +10,23 @@ local item_prototype = require("scripts.util").item_prototype
 local migrations = {
     ["4.1.2"] = function()
         log("Resetting all AutoTrash settings")
-        global = {}
+        for k in pairs(storage) do storage[k] = nil end
         global_data.init()
         for player_index in pairs(game.players) do
             player_data.init(player_index)
         end
     end,
     ["5.1.0"] = function()
-        for _, pdata in pairs(global._pdata) do
+        for _, pdata in pairs(storage._pdata) do
             pdata.infinite = nil
         end
     end,
     ["5.2.2"] = function()
-        global.unlocked_by_force = {}
+        storage.unlocked_by_force = {}
     end,
     ["5.2.3"] = function()
         for player_index, player in pairs(game.players) do
-            local pdata = global._pdata[player_index]
+            local pdata = storage._pdata[player_index]
             if pdata then
                 local psettings = pdata.settings
                 pdata.flags = {
@@ -102,14 +102,14 @@ local migrations = {
         end
 
         for pi, player in pairs(game.players) do
-            local pdata = global._pdata[pi]
+            local pdata = storage._pdata[pi]
             player_data.refresh(player, pdata)
             at_gui.init(player, pdata)
         end
     end,
     ["5.2.4"] = function()
         for player_index, player in pairs(game.players) do
-            local pdata = global._pdata[player_index]
+            local pdata = storage._pdata[player_index]
             pdata.flags.dirty = false
             pdata.dirty = nil
             at_gui.init_status_display(player, pdata)
@@ -118,7 +118,7 @@ local migrations = {
     end,
     ["5.2.9"] = function()
         for player_index, _ in pairs(game.players) do
-            local pdata = global._pdata[player_index]
+            local pdata = storage._pdata[player_index]
             pdata.flags.pinned = true
         end
     end,
@@ -135,7 +135,7 @@ local migrations = {
             end
         end
 
-        for _, pdata in pairs(global._pdata) do
+        for _, pdata in pairs(storage._pdata) do
             set_trash(pdata.config_tmp)
             set_trash(pdata.config_new)
             for _, preset in pairs(pdata.presets) do
@@ -148,12 +148,12 @@ local migrations = {
         script.on_event(defines.events.on_player_trash_inventory_changed, nil)
     end,
     ["5.2.13"] = function()
-        for _, pdata in pairs(global._pdata) do
+        for _, pdata in pairs(storage._pdata) do
             pdata.next_check = nil
         end
     end,
     ["5.2.14"] = function()
-        for _, pdata in pairs(global._pdata) do
+        for _, pdata in pairs(storage._pdata) do
             pdata.networks = {}
             if pdata.main_network and pdata.main_network.valid then
                 pdata.networks[pdata.main_network.unit_number] = pdata.main_network
@@ -163,16 +163,16 @@ local migrations = {
     end,
     ["5.2.15"] = function()
         for pi, player in pairs(game.players) do
-            local pdata = global._pdata[pi]
+            local pdata = storage._pdata[pi]
             player_data.refresh(player, pdata)
             at_gui.init(player, pdata)
         end
         for _, force in pairs(game.forces) do
             if force.character_logistic_requests then
-                global.unlocked_by_force[force.name] = true
+                storage.unlocked_by_force[force.name] = true
             end
         end
-        for _, pdata in pairs(global._pdata) do
+        for _, pdata in pairs(storage._pdata) do
             pdata.config_tmp.by_name = {}
             for _, item_config in pairs(pdata.config_tmp.config) do
                 pdata.config_tmp.by_name[item_config.name] = item_config
@@ -190,7 +190,7 @@ local migrations = {
         end
     end,
     ["5.2.16"] = function()
-        for pi, pdata in pairs(global._pdata) do
+        for pi, pdata in pairs(storage._pdata) do
             local player = game.get_player(pi)
             player_data.refresh(player, pdata)
             if pdata.gui.mod_gui and pdata.gui.mod_gui.flow and pdata.gui.mod_gui.flow.valid then
@@ -200,7 +200,7 @@ local migrations = {
         end
     end,
     ["5.3.1"] = function()
-        for pi, pdata in pairs(global._pdata) do
+        for pi, pdata in pairs(storage._pdata) do
             if pdata.gui.mod_gui and pdata.gui.mod_gui.flow and pdata.gui.mod_gui.flow.valid then
                 local player = game.get_player(pi)
                 pdata.main_button_index = pdata.gui.mod_gui.flow.get_index_in_parent()
@@ -212,7 +212,7 @@ local migrations = {
         end
     end,
     ["5.3.2"] = function ()
-        for pi, pdata in pairs(global._pdata) do
+        for pi, pdata in pairs(storage._pdata) do
             local player = game.get_player(pi)
             local button_flow = mod_gui.get_button_flow(player)
             local at_flow = button_flow.autotrash_main_flow
@@ -223,19 +223,34 @@ local migrations = {
             at_gui.update_main_button(player, pdata)
             spider_gui.init(player, pdata)
         end
-        global.__flib = nil
+        storage.__flib = nil
     end,
     ["5.3.3"] = function()
-        for _, pdata in pairs(global._pdata) do
+        for _, pdata in pairs(storage._pdata) do
             pdata.flags.autotoggle_unrequested = false
         end
     end,
     ["5.3.9"] = function()
-        for _, pdata in pairs(global._pdata) do
+        for _, pdata in pairs(storage._pdata) do
             pdata.gui.sliders = {}
             pdata.gui.options = {}
             pdata.gui.presets = {}
             pdata.gui.networks = {}
+        end
+    end,
+    ["6.0.0"] = function()
+        -- Ensure storage tables exist after 1.1 → 2.x upgrade
+        storage._pdata = storage._pdata or {}
+        storage.unlocked_by_force = storage.unlocked_by_force or {}
+        storage.trash_all_items = storage.trash_all_items or {}
+        for _, pdata in pairs(storage._pdata) do
+            pdata.flags = pdata.flags or {}
+            pdata.gui = pdata.gui or {}
+            pdata.presets = pdata.presets or {}
+            pdata.networks = pdata.networks or {}
+            pdata.temporary_requests = pdata.temporary_requests or {}
+            pdata.config_new = pdata.config_new or {config = {}, by_name = {}, c_requests = 0, max_slot = 0}
+            pdata.config_tmp = pdata.config_tmp or {config = {}, by_name = {}, c_requests = 0, max_slot = 0}
         end
     end,
 }

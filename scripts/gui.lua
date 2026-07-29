@@ -1,4 +1,4 @@
-local gui = require("__flib__.gui-beta")
+local gui = require("scripts.flib-gui")
 local mod_gui = require ("__core__.lualib.mod-gui")
 
 local constants = require("constants")
@@ -38,14 +38,18 @@ local function get_network_data(player)
     if not (network and requester and network.valid and requester.valid) then
         return false
     end
-    local on_the_way = requester.targeted_items_deliver
-    local item_count = player.get_main_inventory().get_contents()
+    local on_the_way = at_util.items_to_name_map(requester.targeted_items_deliver)
+    local main_inv = player.get_main_inventory()
+    local item_count = at_util.contents_to_name_map(main_inv and main_inv.get_contents())
     local cursor_stack = player.cursor_stack
     cursor_stack = (cursor_stack and cursor_stack.valid_for_read) and {[cursor_stack.name] = cursor_stack.count} or {}
     local get_inventory, inventory = player.get_inventory, defines.inventory
-    local armor = get_inventory(inventory.character_armor).get_contents()
-    local gun = get_inventory(inventory.character_guns).get_contents()
-    local ammo = get_inventory(inventory.character_ammo).get_contents()
+    local function safe_contents(inv)
+        return at_util.contents_to_name_map(inv and inv.get_contents())
+    end
+    local armor = safe_contents(get_inventory(inventory.character_armor))
+    local gun = safe_contents(get_inventory(inventory.character_guns))
+    local ammo = safe_contents(get_inventory(inventory.character_ammo))
 
     return true, on_the_way, item_count, cursor_stack, armor, gun, ammo
 end
@@ -284,7 +288,7 @@ at_gui.templates = {
                         tooltip = {"at-gui.tooltip-remove-network"},
                         actions = {on_click = {gui = "settings", action = "remove_network"}},
                     },
-                    {type = "sprite-button", sprite = "utility/rename_icon_normal", style = "tool_button",
+                    {type = "sprite-button", sprite = "utility/rename_icon", style = "tool_button",
                         ref = {"main", "network_edit_button"},
                         actions = {on_click = {gui = "settings", action = "edit_networks"}},
                         tooltip = {"at-gui.tooltip-edit-networks"}
@@ -487,10 +491,11 @@ at_gui.handlers.main = {
             end
             config_tmp.c_requests = c
         elseif index == 7 then
-            pdata.config_tmp = at_util.get_requests(e.player.get_personal_logistic_slot, e.player.character.request_slot_count)
+            pdata.config_tmp = at_util.get_requests_from_entity(e.player.character)
             pdata.selected = false
         elseif index == 8 then
-            local contents = e.player.get_main_inventory().get_contents()
+            local main_inv = e.player.get_main_inventory()
+            local contents = at_util.contents_to_name_map(main_inv and main_inv.get_contents())
             config_tmp.config = {}
             config_tmp.by_name = {}
             config_tmp.max_slot = 0
@@ -498,7 +503,8 @@ at_gui.handlers.main = {
             pdata.selected = false
             local i = 1
             for name, count in pairs(contents) do
-                if not constants.trash_blacklist[name] then
+                local proto = item_prototype(name)
+                if proto and not constants.trash_blacklist[proto.type] then
                     player_data.add_config(pdata, name, count, count, i)
                     i = i + 1
                 end
@@ -605,7 +611,7 @@ at_gui.handlers.slots = {
                 return
             end
             pdata.selected = index
-            local request_amount = item_prototype(elem_value).default_request_amount
+            local request_amount = at_util.default_request_amount(elem_value)
             local trash_amount = pdata.settings.trash_equals_requests and request_amount or constants.max_request
             player_data.add_config(pdata, elem_value, request_amount, trash_amount, index)
 
@@ -833,7 +839,7 @@ at_gui.handlers.networks = {
         local id = tonumber(e.element.parent.name)
         local entity = pdata.networks[id]
         if entity and entity.valid then
-            e.player.zoom_to_world(entity.position, 0.3)
+            e.player.centered_on = entity
             local location = pdata.gui.main.window.location
             location.x = 50
             pdata.gui.main.window.location = location
@@ -1113,7 +1119,7 @@ function at_gui.create_main_window(player, pdata)
     if not player.character then return end
     local flags = pdata.flags
     pdata.selected = false
-    local btns = math.max(40, player.character.request_slot_count, pdata.config_tmp.max_slot)
+    local btns = math.max(40, pdata.config_tmp.max_slot)
     local resolution = player.display_resolution
     local scale = player.display_scale
     local pin_sprite = flags.pinned and "at_pin_black" or "at_pin_white"
@@ -1136,7 +1142,7 @@ function at_gui.create_main_window(player, pdata)
                         {gui = "main", action = "pin_button"},
                         {"main", "pin_button"}, {tooltip={"at-gui.keep-open"}}
                     ),
-                    gui_util.frame_action_button("utility/close_white", "utility/close_black",
+                    gui_util.frame_action_button("utility/close", "utility/close_black",
                         {gui = "main", action = "close_button"}
                     )
                 }},
@@ -1281,11 +1287,11 @@ function at_gui.create_import_window(player, pdata, bp_string, all)
     local button_handler = bp_string and "close_button" or "import_button"
 
     local refs = gui.build(player.gui.screen, {
-        {type = "frame", ref = {"window"}, style = "inner_frame_in_outer_frame", direction = "vertical", children = {
+        {type = "frame", ref = {"window"}, direction = "vertical", children = {
                 {type = "flow", ref = {"titlebar"}, children = {
                     {type = "label", style = "frame_title", caption = caption, elem_mods = {ignored_by_interaction = true}},
                     {type = "empty-widget", style = "flib_titlebar_drag_handle", elem_mods = {ignored_by_interaction = true}},
-                    gui_util.frame_action_button("utility/close_white", "utility/close_black",
+                    gui_util.frame_action_button("utility/close", "utility/close_black",
                         {gui = "import", action = "close_button"}
                     )
                 }},
@@ -1444,25 +1450,21 @@ function at_gui.update_status_display(player, pdata)
     end
 
     local max_count = pdata.settings.status_count
-    local get_request_slot = player.character.get_request_slot
-
     local children = status_table.children
     local c = 1
-    for i = 1, player.character.request_slot_count do
-        local item = get_request_slot(i)
-        if item and item.count > 0 then
+    local config = pdata.config_new and pdata.config_new.config or {}
+    for i = 1, (pdata.config_new and pdata.config_new.max_slot) or 0 do
+        local item = config[i]
+        if item and item.min and item.min > 0 then
             if c > max_count then return true end
-            item.min = item.count
-            if item.min > 0 then
-                local style, diff = at_gui.get_button_style(i, false, item, on_the_way, item_count, cursor_stack, armor, gun, ammo)
-                if style ~= "slot_button" then
-                    local button = children[c]
-                    button.style = style
-                    button.sprite = "item/" .. item.name
-                    button.number = diff
-                    button.visible = true
-                    c = c + 1
-                end
+            local style, diff = at_gui.get_button_style(i, false, item, on_the_way, item_count, cursor_stack, armor, gun, ammo)
+            if style ~= "slot_button" then
+                local button = children[c]
+                button.style = style
+                button.sprite = "item/" .. item.name
+                button.number = diff
+                button.visible = true
+                c = c + 1
             end
         end
     end
@@ -1497,7 +1499,7 @@ function at_gui.update_options(pdata)
     local def = at_gui.defines
 
     pdata.gui.options.trash_unrequested.state = flags.trash_unrequested
-    pdata.gui.options.autotoggle_unrequested = flags.autotoggle_unrequested
+    pdata.gui.options.autotoggle_unrequested.state = flags.autotoggle_unrequested
     frame[def.trash_above_requested].state = flags.trash_above_requested
     frame[def.trash_network].state = flags.trash_network
     frame[def.pause_trash].state = flags.pause_trash

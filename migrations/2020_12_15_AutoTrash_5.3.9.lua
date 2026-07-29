@@ -1,1 +1,1 @@
-global.unlocked_by_force = global.unlocked_by_force or {}
+storage.unlocked_by_force = storage.unlocked_by_force or {}

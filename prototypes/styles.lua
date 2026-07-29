@@ -6,7 +6,7 @@ data:extend{
     -- frame action icons
     data_util.build_sprite("at_pin_black", {0, 64}, frame_action_icons, 32),
     data_util.build_sprite("at_pin_white", {32, 64}, frame_action_icons, 32),
-    data_util.build_sprite("at_import_string", nil, "__base__/graphics/icons/shortcut-toolbar/mip/import-string-x24.png", 24, 2, {scale = 0.5}),
+    data_util.build_sprite("at_import_string", nil, "__base__/graphics/icons/shortcut-toolbar/mip/import-string-x24.png", 24, {scale = 0.5}),
     data_util.build_sprite("autotrash_trash", {0, 0}, "__AutoTrash__/graphics/gui2.png", 128),
     data_util.build_sprite("autotrash_rip", nil, "__AutoTrash__/graphics/rip.png", 64),
 }

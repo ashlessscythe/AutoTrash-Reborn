@@ -1,16 +1,18 @@
 {
   "name": "AutoTrash",
-  "version": "5.3.16",
-  "factorio_version": "1.1",
+  "version": "6.0.0",
+  "factorio_version": "2.1",
   "title": "Auto Trash",
-  "author": "Choumiko",
-  "contact": "Discord: Choumiko#6179",
-  "homepage": "https://github.com/Choumiko/AutoTrash",
-  "description": "Allows saving of different logistic request setups\nEnable autotrash only in certain logistic networks\nLoad your spidertron with different setups with a single click\nLoad one or more preset after respawning\nTrash unrequested items",
-  "dependencies": ["flib >= 0.6.0"],
-  "package":{
-    "scripts": {
-    },
-    "ignore":[ "*.zip", "*.xcf" ]
+  "author": "Choumiko, AutoTrash-Reborn",
+  "contact": "",
+  "homepage": "https://github.com/ashlessscythe/AutoTrash-Reborn",
+  "description": "Companion dialog for personal logistics: presets, blueprint import/export, inventory import, network-gated trash, spidertron presets, and request status. Works alongside vanilla logistic sections on Factorio 2.0 and 2.1.",
+  "dependencies": [
+    "base >= 2.0.0",
+    "flib >= 0.15.0"
+  ],
+  "package": {
+    "scripts": {},
+    "ignore": ["*.zip", "*.xcf"]
   }
 }

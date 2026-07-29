@@ -1,7 +1,22 @@
 ---------------------------------------------------------------------------------------------------
-Version: 5.3.16
-Date: ????
+Version: 6.0.0
+Date: 2026-07-29
+  Features:
+    - Factorio 2.0 and 2.1 compatibility (dual-target codebase).
+    - Companion to vanilla logistic sections: Apply writes only an "AutoTrash" section; other groups are preserved.
+    - Import from logistics merges all manual sections into the GUI.
+    - Trash unrequested uses the native logistic-point flag.
   Changes:
+    - Requires Factorio 2.0+ and flib >= 0.15.0.
+    - MIT license added.
+  Bugfixes:
+    - Fixed controller-type check operator precedence.
+    - Fixed autotoggle-unrequested option writing the wrong GUI property.
+---------------------------------------------------------------------------------------------------
+Version: 5.3.16
+Date: 2024-10-09
+  Changes:
+    - Internal fork bump; superseded by 6.0.0 for Factorio 2.x.
 ---------------------------------------------------------------------------------------------------
 Version: 5.3.15
 Date: 2024-10-09

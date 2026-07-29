@@ -1,13 +1,15 @@
 local at_util = require("scripts.util")
 local gui_util = require("scripts.gui-util")
-local gui = require("__flib__.gui-beta")
+local gui = require("scripts.flib-gui")
 local table = require("__flib__.table")
+local constants = require("constants")
+local max_request = constants.max_request
 
 local player_data = {}
 
 function player_data.init(player_index)
     local player = game.get_player(player_index)
-    global._pdata[player_index] = {
+    storage._pdata[player_index] = {
         flags = {
             can_open_gui = player.force.character_logistic_requests,
             gui_open = false,
@@ -44,12 +46,12 @@ function player_data.init(player_index)
         networks = {}
     }
     player.set_shortcut_available("autotrash-toggle-gui", player.force.character_logistic_requests)
-    player_data.update_settings(game.get_player(player_index), global._pdata[player_index])
+    player_data.update_settings(game.get_player(player_index), storage._pdata[player_index])
 
-    global._pdata[player_index].config_tmp = player_data.combine_from_vanilla(player)
-    global._pdata[player_index].config_new = at_util.copy_preset(global._pdata[player_index].config_tmp)
+    storage._pdata[player_index].config_tmp = player_data.combine_from_vanilla(player)
+    storage._pdata[player_index].config_new = at_util.copy_preset(storage._pdata[player_index].config_tmp)
 
-    return global._pdata[player_index]
+    return storage._pdata[player_index]
 end
 
 function player_data.update_settings(player, pdata)
@@ -118,7 +120,7 @@ function player_data.clear_config(pdata, index)
         config_tmp.config[index] = nil
         if index == config_tmp.max_slot then
             config_tmp.max_slot = 0
-            for i = index-1, 1, -1 do
+            for i = index - 1, 1, -1 do
                 if config_tmp.config[i] then
                     config_tmp.max_slot = i
                     break
@@ -140,12 +142,13 @@ function player_data.check_config(player, pdata)
     return adjusted
 end
 
+--- Import / merge from all vanilla logistic sections.
 function player_data.combine_from_vanilla(player, pdata, name)
     if not player.character then
         return {config = {}, by_name = {}, c_requests = 0, max_slot = 0}
     end
-    local result = at_util.get_requests(player.get_personal_logistic_slot, player.character.request_slot_count)
-    if name and next(result.config) then
+    local result = at_util.get_requests_from_entity(player.character)
+    if name and pdata and next(result.config) then
         pdata.presets[name] = at_util.copy_preset(result)
     end
     return result
@@ -155,42 +158,69 @@ function player_data.import_when_empty(player, pdata)
     if not next(pdata.config_new.config) then
         player.print{"at-message.empty-config"}
         player.print{"at-message.auto-import"}
-        pdata.config_tmp = player_data.combine_from_vanilla(player, "at_imported")
+        pdata.config_tmp = player_data.combine_from_vanilla(player, pdata, "at_imported")
         pdata.config_new = at_util.copy_preset(pdata.config_tmp)
         pdata.selected = false
         return true
     end
 end
 
---mostly taken from https://github.com/raiguard/Factorio-QuickItemSearch/blob/master/src/scripts/player-data.lua
+--- Find a filter for an item in the AutoTrash section (or any empty slot index).
 function player_data.find_request(player, item)
     local character = player.character
-    local get_slot = character.get_personal_logistic_slot
+    if not character then
+        return
+    end
+    local point = at_util.get_requester_point(character)
+    if not point then
+        return
+    end
+    local section = at_util.find_or_create_section(point)
+    if not section then
+        return
+    end
+
     local result
-    local max = character.request_slot_count
-    for i=1, max do
-        local slot = get_slot(i)
-        if tostring(slot.name) == item then
-            slot.index = i
-            result = slot
+    local max = section.filters_count
+    for i = 1, max do
+        local filter = section.get_slot(i)
+        local name = filter.value and filter.value.name
+        if tostring(name) == item then
+            result = {
+                name = name,
+                min = filter.min or 0,
+                max = filter.max == nil and max_request or filter.max,
+                index = i,
+            }
             break
         end
     end
-    --extend slots if no empty one was found
     if not result and item == "nil" then
         max = max + 1
-        result = get_slot(max)
-        result.index = max
+        result = {name = nil, min = 0, max = max_request, index = max}
     end
     return result
 end
 
 function player_data.set_request(player, pdata, request, temporary)
-    local existing_request
     local character = player.character
+    if not character then
+        return false
+    end
+    local point = at_util.get_requester_point(character)
+    if not point then
+        return false
+    end
+    local section = at_util.find_or_create_section(point)
+    if not section then
+        return false
+    end
+
+    local existing_request
     if request.index then
-        existing_request = character.get_personal_logistic_slot(request.index)
-        if tostring(existing_request.name) ~= request.name then
+        local filter = section.get_slot(request.index)
+        local fname = filter and filter.value and filter.value.name
+        if tostring(fname) ~= request.name then
             existing_request = player_data.find_request(player, request.name)
             if existing_request then
                 request.index = existing_request.index
@@ -204,7 +234,12 @@ function player_data.set_request(player, pdata, request, temporary)
                 end
             end
         else
-            existing_request.index = request.index
+            existing_request = {
+                name = fname,
+                min = filter.min or 0,
+                max = filter.max == nil and max_request or filter.max,
+                index = request.index,
+            }
         end
     else
         existing_request = player_data.find_request(player, "nil")
@@ -215,7 +250,9 @@ function player_data.set_request(player, pdata, request, temporary)
             return false
         end
     end
-    character.set_personal_logistic_slot(request.index, request)
+
+    section.set_slot(request.index, at_util.make_filter(request.name, request.min or 0, request.max))
+
     if temporary then
         pdata.temporary_requests[request.name] = {temporary = request, previous = existing_request}
         pdata.flags.has_temporary_requests = true
@@ -224,7 +261,11 @@ function player_data.set_request(player, pdata, request, temporary)
 end
 
 function player_data.check_temporary_requests(player, pdata)
-    local contents = player.get_main_inventory().get_contents()
+    local inv = player.get_main_inventory()
+    if not inv then
+        return
+    end
+    local contents = at_util.contents_to_name_map(inv.get_contents())
     local cursor_stack = player.cursor_stack
     if cursor_stack and cursor_stack.valid_for_read then
         contents[cursor_stack.name] = cursor_stack.count + (contents[cursor_stack.name] or 0)
@@ -232,22 +273,37 @@ function player_data.check_temporary_requests(player, pdata)
 
     local temporary_requests = pdata.temporary_requests
     local character = player.character
-    local set_request = character.set_personal_logistic_slot
-    local get_request = character.get_personal_logistic_slot
-    local clear_request = character.clear_personal_logistic_slot
+    if not character then
+        return
+    end
+    local point = at_util.get_requester_point(character)
+    if not point then
+        return
+    end
+    local section = at_util.find_or_create_section(point)
+    if not section then
+        return
+    end
+
     for name, next_request in pairs(temporary_requests) do
         local temporary_request = next_request.temporary
         local item_count = contents[name] or 0
 
         local remove_request = false
-        local current_request = get_request(temporary_request.index)
-        if tostring(current_request.name) == temporary_request.name then
-            if current_request.min ~= temporary_request.min or current_request.max ~= temporary_request.max then
+        local filter = section.get_slot(temporary_request.index)
+        local current_name = filter and filter.value and filter.value.name
+        if tostring(current_name) == temporary_request.name then
+            local cur_min = filter.min or 0
+            local cur_max = filter.max == nil and max_request or filter.max
+            if cur_min ~= temporary_request.min or cur_max ~= temporary_request.max then
                 remove_request = true
             else
                 if item_count >= temporary_request.min and item_count <= temporary_request.max then
-                    clear_request(temporary_request.index)
-                    set_request(temporary_request.index, next_request.previous)
+                    section.clear_slot(temporary_request.index)
+                    local prev = next_request.previous
+                    if prev and prev.name then
+                        section.set_slot(temporary_request.index, at_util.make_filter(prev.name, prev.min or 0, prev.max))
+                    end
                     remove_request = true
                     player.print({"at-message.removed-from-temporary-requests", at_util.item_prototype(name).localised_name})
                 end
@@ -279,12 +335,11 @@ function player_data.add_preset(player, pdata, name, config)
         player.print({"at-message.preset-updated", name})
     else
         pdata.presets[name] = at_util.copy_preset(config)
-        if (player.controller_type ~= defines.controllers.editor) then
+        if player.controller_type ~= defines.controllers.editor then
             gui.build(pdata.gui.presets.scroll, {gui_util.preset(name, pdata)})
         end
     end
     return true
-
 end
 
 return player_data

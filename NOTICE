@@ -1,0 +1,12 @@
+NOTICE
+
+This product includes code adapted from Factorio Library (flib) by raiguard et al.,
+licensed under the MIT License:
+  https://codeberg.org/raiguard/flib
+
+Vendored modules (API-compatible copies of flib helpers removed/renamed in flib 0.15+):
+  scripts/flib-gui.lua
+  scripts/flib-event.lua
+  scripts/flib-migration.lua
+
+Original AutoTrash by Choumiko (MIT). AutoTrash-Reborn port for Factorio 2.0/2.1.

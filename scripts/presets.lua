@@ -1,5 +1,6 @@
 local at_util = require("scripts.util")
 local max_request = require("constants").max_request
+local COMBINATOR_SLOT_COUNT = require("constants").COMBINATOR_SLOT_COUNT
 local presets = {}
 
 --merge 2 presets,
@@ -79,10 +80,10 @@ local ceil = math.ceil
 --creates a blueprint with 2 rows of constant combinators
 --first row for requests, second for trash (signal omitted when no trash value is set)
 --preserves slot order, empty combinators are not included
--- for importing, slot can be recalculated by the x position: starting_slot = x * 18 + 1
+-- for importing, slot can be recalculated by the x position: starting_slot = x * COMBINATOR_SLOT_COUNT + 1
 -- y position of 0: request, y = 4: trash
 function presets.export(preset, name)
-    local item_slot_count = game.entity_prototypes["constant-combinator"].item_slot_count
+    local item_slot_count = COMBINATOR_SLOT_COUNT
     local combinators = ceil(preset.max_slot / item_slot_count)
     local half_cc = ceil(combinators / 2)
     local start
@@ -105,17 +106,20 @@ function presets.export(preset, name)
             if item_config then
                 index = item_config.slot - index_offset
                 item_signal = {name = item_config.name, type = "item"}
-                request_items[#request_items+1] = {index = index, count = item_config.min, signal = item_signal}
+                request_items[#request_items + 1] = {index = index, count = item_config.min, signal = item_signal}
                 if item_config.max < max_request then
-                    trash_items[#trash_items+1] = {index = index, count = item_config.max, signal = item_signal}
+                    trash_items[#trash_items + 1] = {index = index, count = item_config.max, signal = item_signal}
                 end
             end
         end
-        --maybe skip empty combinators (can mess with entity_number but does it matter?)
-        bp[#bp+1] = request_cc[cc]
-        bp[#bp+1] = trash_cc[cc]
+        bp[#bp + 1] = request_cc[cc]
+        bp[#bp + 1] = trash_cc[cc]
     end
-    local icons = {{index = 1, signal = {name = "signal-A", type = "virtual"}},{index = 2, signal = {name = "signal-T", type = "virtual"}},{index = 3, signal = {name = "signal-0", type = "virtual"}}}
+    local icons = {
+        {index = 1, signal = {name = "signal-A", type = "virtual"}},
+        {index = 2, signal = {name = "signal-T", type = "virtual"}},
+        {index = 3, signal = {name = "signal-0", type = "virtual"}}
+    }
     local inventory = game.create_inventory(1)
     inventory.insert{name = "blueprint"}
     local stack = inventory[1]
@@ -148,7 +152,7 @@ end
 --Storing the exported string in the blueprint library preserves it even when mod items have been removed
 --Importing a string with invalid item signals removes the combinator containing the invalid signals.
 function presets.import(preset, icons)
-    local item_slot_count = game.entity_prototypes["constant-combinator"].item_slot_count
+    local item_slot_count = COMBINATOR_SLOT_COUNT
     local tmp = {config = {}, by_name = {}, max_slot = 0, c_requests = 0}
     local by_name = tmp.by_name
     local config = tmp.config
@@ -156,28 +160,38 @@ function presets.import(preset, icons)
     local cc_found = false
     local missing_items = {}
     if icons then
-        --log_blueprint_entities(preset)
         for _, cc in pairs(preset) do
             index_offset = (cc.position.x - 0.5) * item_slot_count
             local filters = cc.control_behavior and cc.control_behavior.filters or {}
+            -- Also accept 2.0 section-based constant combinator blueprints
+            if not next(filters) and cc.control_behavior and cc.control_behavior.sections then
+                filters = {}
+                for _, section in pairs(cc.control_behavior.sections) do
+                    for _, f in pairs(section.filters or {}) do
+                        filters[#filters + 1] = f
+                    end
+                end
+            end
             if cc.name == "constant-combinator" then
                 cc_found = true
                 for _, item_config in pairs(filters) do
-                    if at_util.item_prototype(item_config.signal.name) then
-                        index = index_offset + item_config.index
+                    local signal = item_config.signal or item_config
+                    local signal_name = signal.name
+                    if signal_name and at_util.item_prototype(signal_name) then
+                        index = index_offset + (item_config.index or 1)
                         if not config[index] then
-                            config[index] = {name = item_config.signal.name, slot = index, max = max_request, min = 0}
-                            by_name[item_config.signal.name] = config[index]
+                            config[index] = {name = signal_name, slot = index, max = max_request, min = 0}
+                            by_name[signal_name] = config[index]
                         end
                         if (cc.position.y - 0.5) == 0 then
-                            config[index].min = item_config.count
+                            config[index].min = item_config.count or item_config.min or 0
                         else
-                            config[index].max = item_config.count
+                            config[index].max = item_config.count or item_config.max or max_request
                         end
                         tmp.max_slot = tmp.max_slot > index and tmp.max_slot or index
                         tmp.c_requests = config[index].min > 0 and (tmp.c_requests + 1) or tmp.c_requests
-                    else
-                        table.insert(missing_items, item_config.signal.name)
+                    elseif signal_name then
+                        table.insert(missing_items, signal_name)
                     end
                 end
             end

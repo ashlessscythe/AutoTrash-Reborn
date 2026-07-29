@@ -1,6 +1,6 @@
-local event = require("__flib__.event")
-local gui = require("__flib__.gui-beta")
-local migration = require("__flib__.migration")
+local event = require("scripts.flib-event")
+local gui = require("scripts.flib-gui")
+local migration = require("scripts.flib-migration")
 
 local constants = require("constants")
 local trash_blacklist = constants.trash_blacklist
@@ -19,6 +19,17 @@ local unpause_trash = at_util.unpause_trash
 local get_network_entity = at_util.get_network_entity
 local in_network = at_util.in_network
 
+--- Register an event only when the id exists (2.0 / 2.1 single-codebase).
+local function on_event(event_id, handler, filters)
+    if event_id then
+        if filters then
+            script.on_event(event_id, handler, filters)
+        else
+            script.on_event(event_id, handler)
+        end
+    end
+end
+
 --TODO: "import" items from quickbars (automatically or by button?), add full rows and preserve quickbar layout
 --[[
         - register on_player_main_inventory_changed etc conditionally
@@ -29,7 +40,7 @@ local in_network = at_util.in_network
 local function on_nth_tick()
     for _, p in pairs(game.connected_players) do
         if p.character then
-            local pdata = global._pdata[p.index]
+            local pdata = storage._pdata[p.index]
             if pdata.flags.gui_open then
                 at_gui.update_button_styles(p, pdata)
             end
@@ -52,7 +63,7 @@ local function on_init()
     global_data.refresh()
     for _, force in pairs(game.forces) do
         if force.character_logistic_requests then
-            global.unlocked_by_force[force.name] = true
+            storage.unlocked_by_force[force.name] = true
         end
         for player_index, player in pairs(force.players) do
             local pdata = player_data.init(player_index)
@@ -82,7 +93,7 @@ local function on_configuration_changed(data)
         at_util.remove_invalid_items()
         global_data.refresh()
         removed = true
-        for index, pdata in pairs(global._pdata) do
+        for index, pdata in pairs(storage._pdata) do
             local player = game.get_player(index)
             player_data.refresh(player, pdata)
             at_gui.recreate(player, pdata)
@@ -99,7 +110,7 @@ event.on_configuration_changed(on_configuration_changed)
 
 gui.hook_events(function(e)
     local player = game.get_player(e.player_index)
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     e.player = player
     e.pdata = pdata
     local msg = gui.read_action(e)
@@ -131,7 +142,7 @@ gui.hook_events(function(e)
         if __DebugAdapter then
             spider_gui.init(player, pdata)
         end
-        local hide = not e.entity.get_logistic_point(defines.logistic_member_index.character_requester)
+        local hide = not e.entity.get_logistic_point(defines.logistic_member_index.spidertron_requester)
         spider_gui.update(player, pdata, hide)
     end
 end)
@@ -141,7 +152,7 @@ end)
 local function on_player_main_inventory_changed(e)
     local player = game.get_player(e.player_index)
     if not (player.character) then return end
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     local flags = pdata.flags
     if flags.has_temporary_requests then
         player_data.check_temporary_requests(player, pdata)
@@ -156,8 +167,9 @@ event.on_player_main_inventory_changed(on_player_main_inventory_changed)
 
 -- Set trash to 0 if the item isn't set and set it to request if it is
 local function add_to_trash(player, item)
-    if trash_blacklist[item] then
-        player.print({"", at_util.item_prototype(item).localised_name, " is on the blacklist for trashing"})
+    local proto = at_util.item_prototype(item)
+    if not proto or trash_blacklist[proto.type] then
+        player.print({"", proto and proto.localised_name or item, " is on the blacklist for trashing"})
         return
     end
     local request = player_data.find_request(player, item)
@@ -166,7 +178,7 @@ local function add_to_trash(player, item)
     else
         request = {name = item, min = 0, max = 0}
     end
-    if player_data.set_request(player, global._pdata[player.index], request, true) then
+    if player_data.set_request(player, storage._pdata[player.index], request, true) then
         player.print({"at-message.added-to-temporary-trash", at_util.item_prototype(item).localised_name})
     end
 end
@@ -176,7 +188,7 @@ end
 event.on_player_selected_area(function(e)
     if e.item ~= "autotrash-network-selection" then return end
     local player = game.get_player(e.player_index)
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     for _, roboport in pairs(e.entities) do
         local robo_id = roboport.unit_number
         if not pdata.networks[robo_id] then
@@ -200,7 +212,7 @@ end)
 event.on_player_alt_selected_area(function(e)
     if e.item ~= "autotrash-network-selection" then return end
     local player = game.get_player(e.player_index)
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     for _, roboport in pairs(e.entities) do
         if pdata.networks[roboport.unit_number] then
             pdata.networks[roboport.unit_number] = nil
@@ -225,13 +237,13 @@ end)
 event.on_player_created(function(e)
     local player = game.get_player(e.player_index)
     player_data.init(e.player_index)
-    at_gui.init(player, global._pdata[e.player_index])
+    at_gui.init(player, storage._pdata[e.player_index])
 end)
 
 --TODO is this still needed?
 event.on_cutscene_cancelled(function(e)
     local player = game.get_player(e.player_index)
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     if not pdata then
         pdata = player_data.init(e.player_index)
     else
@@ -241,13 +253,13 @@ event.on_cutscene_cancelled(function(e)
 end)
 
 event.on_player_removed(function(e)
-    global._pdata[e.player_index] = nil
+    storage._pdata[e.player_index] = nil
     register_conditional_events()
 end)
 
 event.on_player_toggled_map_editor(function(e)
     local player = game.get_player(e.player_index)
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     if pdata.flags.gui_open and not player.character then
         player.print{"at-message.no-character"}
         at_gui.close(player, pdata, true)
@@ -259,7 +271,7 @@ end)
 event.on_player_respawned(function(e)
     local player = game.get_player(e.player_index)
     if not player.character then return end
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     local selected_presets = pdata.death_presets
     if table_size(selected_presets) > 0 then
         local tmp = {config = {}, by_name = {}, max_slot = 0, c_requests = 0}
@@ -271,7 +283,7 @@ event.on_player_respawned(function(e)
         pdata.config_new = at_util.copy_preset(tmp)
 
         set_requests(player, pdata)
-        player.character_personal_logistic_requests_enabled = true
+        at_util.enable_personal_logistics(player.character)
         at_gui.update_status_display(player, pdata)
     end
 end)
@@ -279,7 +291,7 @@ end)
 event.on_player_changed_position(function(e)
     local player = game.get_player(e.player_index)
     if not player.character then return end
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     --Rocket rush scenario might teleport before AutoTrash gets a chance to init?!
     if not pdata then
         pdata = player_data.init(e.player_index)
@@ -319,7 +331,7 @@ local function on_pre_mined_item(e)
     local entity = e.entity
     if not (entity.logistic_network and entity.logistic_network.valid) then return end
     local cells
-    for pi, pdata in pairs(global._pdata) do
+    for pi, pdata in pairs(storage._pdata) do
         local player = game.get_player(pi)
         local main = pdata.networks[entity.unit_number]
         local current = pdata.current_network
@@ -364,7 +376,7 @@ local function on_built_entity(e)
     local network = entity.logistic_network
     local exists
     if not (network and network.valid) then return end
-    for pi, pdata in pairs(global._pdata) do
+    for pi, pdata in pairs(storage._pdata) do
         local player = game.get_player(pi)
         for id, roboport in pairs(pdata.networks) do
             if roboport and roboport.valid and network == roboport.logistic_network then
@@ -390,7 +402,7 @@ event.script_raised_revive(on_built_entity, robofilter)
 local function toggle_autotrash_pause(e, player)
     player = player or game.get_player(e.player_index)
     if not player.character then return end
-    local pdata = global._pdata[player.index]
+    local pdata = storage._pdata[player.index]
     player_data.import_when_empty(player, pdata)
     if pdata.flags.pause_trash then
         unpause_trash(player, pdata)
@@ -408,7 +420,7 @@ event.register("autotrash_pause", toggle_autotrash_pause)
 event.register("autotrash_pause_requests", function(e)
     local player = game.get_player(e.player_index)
     if not player.character then return end
-    local pdata = global._pdata[player.index]
+    local pdata = storage._pdata[player.index]
     player_data.import_when_empty(player, pdata)
     if pdata.flags.pause_requests then
         at_util.unpause_requests(player, pdata)
@@ -422,7 +434,7 @@ end)
 
 event.register({"autotrash-toggle-gui", defines.events.on_lua_shortcut}, function(e)
     if e.input_name or e.prototype_name == "autotrash-toggle-gui" then
-        local pdata = global._pdata[e.player_index]
+        local pdata = storage._pdata[e.player_index]
         if pdata.flags.can_open_gui then
             at_gui.toggle(game.get_player(e.player_index), pdata)
         end
@@ -431,10 +443,10 @@ end)
 
 event.register("autotrash-toggle-unrequested", function(e)
     local player = game.get_player(e.player_index)
-    if not player.controller_type == defines.controllers.character then
+    if player.controller_type ~= defines.controllers.character then
         return
     end
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     pdata.flags.trash_unrequested = not pdata.flags.trash_unrequested
     at_gui.toggle_setting.trash_unrequested(player, pdata)
     at_gui.update_options(pdata)
@@ -464,7 +476,7 @@ local function on_runtime_mod_setting_changed(e)
     if not e.player_index then return end
     local player_index = e.player_index
     local player = game.get_player(player_index)
-    local pdata = global._pdata[player_index]
+    local pdata = storage._pdata[player_index]
     if not (player_index and pdata) then return end
     player_data.refresh(player, pdata)
     at_gui.update_main_button(player, pdata)
@@ -492,7 +504,7 @@ end
 event.on_runtime_mod_setting_changed(on_runtime_mod_setting_changed)
 
 local function on_player_display_resolution_changed(e)
-    local pdata = global._pdata[e.player_index]
+    local pdata = storage._pdata[e.player_index]
     local player = game.get_player(e.player_index)
     player_data.refresh(player, pdata)
     if player.character then
@@ -506,9 +518,9 @@ event.on_player_display_scale_changed(on_player_display_resolution_changed)
 
 local function on_research_finished(e)
     local force = e.research.force
-    if not global.unlocked_by_force[force.name] and force.character_logistic_requests then
+    if not storage.unlocked_by_force[force.name] and force.character_logistic_requests then
         for _, player in pairs(force.players) do
-            local pdata = global._pdata[player.index]
+            local pdata = storage._pdata[player.index]
             if not pdata then
                 pdata = player_data.init(player.index)
             end
@@ -520,7 +532,7 @@ local function on_research_finished(e)
                 at_gui.open_status_display(player, pdata)
             end
         end
-        global.unlocked_by_force[force.name] = true
+        storage.unlocked_by_force[force.name] = true
     end
 end
 event.on_research_finished(on_research_finished)
@@ -529,7 +541,7 @@ local at_commands = {
     import = function(args)
         local player_index = args.player_index
         local player = game.get_player(player_index)
-        local pdata = global._pdata[player_index]
+        local pdata = storage._pdata[player_index]
         if not pdata then
             pdata = player_data.init(player_index)
         end
@@ -543,7 +555,7 @@ local at_commands = {
     reset = function(args)
         local player_index = args.player_index
         local player = game.get_player(player_index)
-        local pdata = global._pdata[player_index]
+        local pdata = storage._pdata[player_index]
         at_gui.destroy(player, pdata)
         at_gui.open(player, pdata)
         spider_gui.init(player, pdata)
@@ -551,7 +563,7 @@ local at_commands = {
 
     compress = function(args)
         local player_index = args.player_index
-        local pdata = global._pdata[player_index]
+        local pdata = storage._pdata[player_index]
         local config = pdata.config_tmp.config
         local decrease = 0
         local gap_size
@@ -590,7 +602,7 @@ local at_commands = {
     insert_row = function(args)
         local player_index = args.player_index
         local player = game.get_player(player_index)
-        local pdata = global._pdata[player_index]
+        local pdata = storage._pdata[player_index]
         local row = tonumber(args.parameter)
         if not row then
             player.print(args.parameter .. " is not a number")
@@ -617,7 +629,7 @@ local at_commands = {
     move_button = function(args)
         local player_index = args.player_index
         local player = game.get_player(player_index)
-        local pdata = global._pdata[player_index]
+        local pdata = storage._pdata[player_index]
         local index = tonumber(args.parameter)
         if index then
             pdata.main_button_index = index
