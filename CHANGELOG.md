@@ -2,6 +2,13 @@
 
 All notable changes to Auto Trash are documented here.
 
+## [6.0.2] — 2026-07-30
+
+### Changed
+
+- Packaging and Mod Portal release tooling (GitHub Actions builds on `v*` tags).
+- Documentation, Mod Portal description, and gallery screenshots.
+
 ## [6.0.1] — 2026-07-29
 
 ### Added
