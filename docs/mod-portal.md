@@ -14,7 +14,7 @@ https://raw.githubusercontent.com/ashlessscythe/AutoTrash-Reborn/public/media/gu
 
 ---
 
-# Auto Trash
+# Auto Trash Reborn
 
 > **Presets and tools for personal logistics — without replacing vanilla sections.**
 

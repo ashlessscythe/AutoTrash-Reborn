@@ -80,7 +80,7 @@ local migrations = {
             local mod_gui_flow = mod_gui.get_frame_flow(player)
             if mod_gui_flow and mod_gui_flow.valid then
                 for _, egui in pairs(mod_gui_flow.children) do
-                    if egui.get_mod() == "AutoTrash" then
+                    if egui.get_mod() == "autotrash-reborn" or egui.get_mod() == "AutoTrash" then
                         if egui.name == "autotrash_status_flow" then
                             pdata.gui.status_flow = egui
                             egui.clear()
@@ -95,7 +95,7 @@ local migrations = {
                 button_flow.destroy()
             end
             for _, egui in pairs(player.gui.screen.children) do
-                if egui.get_mod() == "AutoTrash" then
+                if egui.get_mod() == "autotrash-reborn" or egui.get_mod() == "AutoTrash" then
                     egui.destroy()
                 end
             end

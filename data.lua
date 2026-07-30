@@ -74,12 +74,12 @@ data:extend{
         type = "shortcut",
         name = "autotrash-toggle-gui",
         action = "lua",
-        icon = "__AutoTrash__/graphics/shortcut.png",
+        icon = "__autotrash-reborn__/graphics/shortcut.png",
         icon_size = 64,
-        small_icon = "__AutoTrash__/graphics/shortcut.png",
+        small_icon = "__autotrash-reborn__/graphics/shortcut.png",
         small_icon_size = 64,
-        disabled_icon = "__AutoTrash__/graphics/shortcut-disabled.png",
-        disabled_small_icon = "__AutoTrash__/graphics/shortcut-disabled.png",
+        disabled_icon = "__autotrash-reborn__/graphics/shortcut-disabled.png",
+        disabled_small_icon = "__autotrash-reborn__/graphics/shortcut-disabled.png",
         toggleable = true,
         associated_control_input = "autotrash-toggle-gui"
     }

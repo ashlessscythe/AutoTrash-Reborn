@@ -1235,7 +1235,7 @@ function at_gui.create_main_window(player, pdata)
     local collapse = collapse_sprites[content_visible]
 
     local titlebar_children = {
-        {type = "label", style = "frame_title", caption = {"mod-name.AutoTrash"}, elem_mods = {ignored_by_interaction = true}},
+        {type = "label", style = "frame_title", caption = {"mod-name.autotrash-reborn"}, elem_mods = {ignored_by_interaction = true}},
     }
     if floating then
         titlebar_children[#titlebar_children + 1] = {

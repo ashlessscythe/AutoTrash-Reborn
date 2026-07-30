@@ -1,4 +1,4 @@
-# Auto Trash
+# Auto Trash Reborn
 
 Companion dialog for personal logistics on Factorio **2.0** and **2.1**.
 
@@ -37,6 +37,14 @@ On **Apply**, only a dedicated logistic section named `AutoTrash` is rewritten. 
 
 - Apply writes only the `AutoTrash` section. Edit other groups in the vanilla logistics tab.
 - Keep export strings as blueprints in the library when possible.
+
+## Bugs
+
+This is an early revival of a large legacy codebase for Factorio 2.0/2.1. Expect bugs.
+
+Please report issues (with Factorio version, mod version, and steps to reproduce when you can) on GitHub:
+
+https://github.com/ashlessscythe/AutoTrash-Reborn/issues
 
 ## Hotkeys
 

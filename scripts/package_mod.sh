@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Package AutoTrash for Factorio Mod Portal upload.
-# Produces: AutoTrash_<version>.zip containing AutoTrash_<version>/...
+# Package autotrash-reborn for Factorio Mod Portal upload.
+# Produces: autotrash-reborn_<version>.zip containing autotrash-reborn_<version>/...
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

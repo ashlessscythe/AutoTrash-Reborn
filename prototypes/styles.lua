@@ -1,18 +1,18 @@
 local data_util = require("__flib__.data-util")
 
-local frame_action_icons = "__AutoTrash__/graphics/frame-action-icons.png"
+local frame_action_icons = "__autotrash-reborn__/graphics/frame-action-icons.png"
 
 data:extend{
     -- frame action icons
     data_util.build_sprite("at_pin_black", {0, 64}, frame_action_icons, 32),
     data_util.build_sprite("at_pin_white", {32, 64}, frame_action_icons, 32),
     data_util.build_sprite("at_import_string", nil, "__base__/graphics/icons/shortcut-toolbar/mip/import-string-x24.png", 24, {scale = 0.5}),
-    data_util.build_sprite("autotrash_trash", {0, 0}, "__AutoTrash__/graphics/gui2.png", 128),
-    data_util.build_sprite("autotrash_rip", nil, "__AutoTrash__/graphics/rip.png", 64),
+    data_util.build_sprite("autotrash_trash", {0, 0}, "__autotrash-reborn__/graphics/gui2.png", 128),
+    data_util.build_sprite("autotrash_rip", nil, "__autotrash-reborn__/graphics/rip.png", 64),
 }
 
 local base_layer = {
-    filename = "__AutoTrash__/graphics/gui2.png",
+    filename = "__autotrash-reborn__/graphics/gui2.png",
     size = 128,
     position = {0, 0}
 }
@@ -24,7 +24,7 @@ data:extend{
         flags = {"icon"},
         layers = {
             base_layer,
-            {filename = "__AutoTrash__/graphics/gui2.png", size = 128, position = {128, 0}}
+            {filename = "__autotrash-reborn__/graphics/gui2.png", size = 128, position = {128, 0}}
         }
     },
     {
@@ -33,7 +33,7 @@ data:extend{
         flags = {"icon"},
         layers = {
             base_layer,
-            {filename = "__AutoTrash__/graphics/gui2.png", size = 128, position = {0, 128}}
+            {filename = "__autotrash-reborn__/graphics/gui2.png", size = 128, position = {0, 128}}
         }
     },
     {
@@ -42,7 +42,7 @@ data:extend{
         flags = {"icon"},
         layers = {
             base_layer,
-            {filename = "__AutoTrash__/graphics/gui2.png", size = 128, position = {128, 128}}
+            {filename = "__autotrash-reborn__/graphics/gui2.png", size = 128, position = {128, 128}}
         }
     },
 }

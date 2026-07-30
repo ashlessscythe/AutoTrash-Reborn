@@ -2,6 +2,13 @@
 
 All notable changes to Auto Trash are documented here.
 
+## [6.0.3] — 2026-07-30
+
+### Changed
+
+- Mod id is now `autotrash-reborn` (title: Auto Trash Reborn) for a new Mod Portal entry.
+- Author set to Tony; README notes that bugs are expected and should be reported on GitHub.
+
 ## [6.0.2] — 2026-07-30
 
 ### Changed

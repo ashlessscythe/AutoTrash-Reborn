@@ -1,9 +1,9 @@
 {
-  "name": "AutoTrash",
-  "version": "6.0.2",
+  "name": "autotrash-reborn",
+  "version": "6.0.3",
   "factorio_version": "2.1",
-  "title": "Auto Trash",
-  "author": "Choumiko, AutoTrash-Reborn",
+  "title": "Auto Trash Reborn",
+  "author": "Tony",
   "contact": "",
   "homepage": "https://github.com/ashlessscythe/AutoTrash-Reborn",
   "description": "Companion dialog for personal logistics: presets, blueprint import/export, inventory import, network-gated trash, spidertron presets, and request status. Works alongside vanilla logistic sections on Factorio 2.0 and 2.1.",

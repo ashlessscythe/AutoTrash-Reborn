@@ -20,9 +20,9 @@ Maintainer guide for publishing a new version.
 
 ## Package rules (do not change casually)
 
-- ZIP name: `AutoTrash_<version>.zip`
-- Archive must contain exactly one top-level folder: `AutoTrash_<version>/`
-- Tag must match `info.json` version (`v6.0.1` ↔ `6.0.1`)
+- ZIP name: `autotrash-reborn_<version>.zip`
+- Archive must contain exactly one top-level folder: `autotrash-reborn_<version>/`
+- Tag must match `info.json` version (`v6.0.2` ↔ `6.0.2`)
 - No executables or scripts in the ZIP (Mod Portal rejects them); packaging strips the execute bit and excludes `*.sh` / `*.ps1` / `*.py` / `*.exe` / `*.bat` and similar
 - Gallery assets under `media/` are repo-only (README / Mod Portal description) and are omitted from the ZIP
 
