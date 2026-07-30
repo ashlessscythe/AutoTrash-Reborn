@@ -6,6 +6,20 @@ Vanilla already has logistic sections and groups. AutoTrash does **not** replace
 
 On **Apply**, only a dedicated logistic section named `AutoTrash` is rewritten. Your other vanilla sections stay intact. **Import from logistics** merges filters from all manual sections into the AutoTrash GUI.
 
+## Gallery
+
+![Docked beside the character inventory with request/trash amount selection](media/gui-docked-config.png)
+
+*Docked beside the character inventory — configure requests, trash amounts, and presets.*
+
+![Floating Auto Trash window with the toolbar shortcut highlighted](media/gui-floating-toolbar.png)
+
+*Floating window — same companion GUI, with the toolbar shortcut visible in the shortcut bar.*
+
+![Collapsed Auto Trash docked next to the crafting window](media/gui-docked-collapsed.png)
+
+*Collapsed while docked — expand when you need the full logistics panel.*
+
 ## Features
 
 - Configure request and trash settings in one window
@@ -46,3 +60,7 @@ MIT — see [LICENSE](LICENSE). Original AutoTrash by Choumiko.
 ## Portal uploads (2.0 vs 2.1)
 
 One codebase targets both. For Mod Portal, set `"factorio_version"` to `"2.0"` or `"2.1"` and bump the mod version for each upload (same pattern as SpidertronHunter).
+
+## Release
+
+Tag `vX.Y.Z` matching `info.json` to build the Mod Portal ZIP via GitHub Actions. See [docs/releasing.md](docs/releasing.md). Mod Portal description copy: [docs/mod-portal.md](docs/mod-portal.md).

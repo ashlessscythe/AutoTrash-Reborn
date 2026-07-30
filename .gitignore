@@ -9,3 +9,5 @@ Instructions.png
 Instructions2.png
 cookiejar.txt
 *.zip
+dist/
+changelog.txt
