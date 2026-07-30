@@ -167,6 +167,17 @@ Presets are shared with the player's character presets.
 
 ---
 
+# Credits
+
+This mod is based on **Auto Trash** by **Choumiko**.
+
+- Original Mod Portal: https://mods.factorio.com/mod/AutoTrash
+- Original source: https://github.com/Choumiko/AutoTrash
+
+Auto Trash Reborn is an unofficial revival/port for Factorio 2.0/2.1 and is not affiliated with the original author. Released under the MIT license.
+
+---
+
 # Source
 
 GitHub
@@ -174,5 +185,3 @@ GitHub
 https://github.com/ashlessscythe/AutoTrash-Reborn
 
 Issue reports and suggestions are welcome.
-
-Original AutoTrash by Choumiko. This fork is MIT-licensed.

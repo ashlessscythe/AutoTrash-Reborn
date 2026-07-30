@@ -61,9 +61,13 @@ https://github.com/ashlessscythe/AutoTrash-Reborn/issues
 - `/at_compress` — Remove empty rows in the configuration GUI
 - `/at_insert_row <n>` — Insert an empty row after row `n` (rows are 10 slots)
 
+## Credits
+
+Based on **[Auto Trash](https://mods.factorio.com/mod/AutoTrash)** by **[Choumiko](https://mods.factorio.com/user/Choumiko)** ([source](https://github.com/Choumiko/AutoTrash)). This is an unofficial revival/port for Factorio 2.0/2.1 — not affiliated with the original author.
+
 ## License
 
-MIT — see [LICENSE](LICENSE). Original AutoTrash by Choumiko.
+MIT — see [LICENSE](LICENSE). Copyright for the original work belongs to Choumiko; subsequent changes to the AutoTrash-Reborn contributors.
 
 ## Portal uploads (2.0 vs 2.1)
 
