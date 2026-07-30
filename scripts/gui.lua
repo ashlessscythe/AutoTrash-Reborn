@@ -30,6 +30,19 @@ local function tonumber_max(n)
     return (n > constants.max_request) and constants.max_request or n
 end
 
+local collapse_sprites = {
+    [true] = {
+        sprite = "utility/collapse",
+        hovered_sprite = "utility/collapse_dark",
+        clicked_sprite = "utility/collapse_dark",
+    },
+    [false] = {
+        sprite = "utility/expand",
+        hovered_sprite = "utility/expand",
+        clicked_sprite = "utility/expand",
+    },
+}
+
 local function get_network_data(player)
     local character = player.character
     if not character then return end
@@ -66,6 +79,72 @@ local at_gui = {
         autotoggle_unrequested = "autotoggle_unrequested",
     },
 }
+
+local function open_controller_gui(player)
+    if not player.opened_self then
+        player.opened = defines.gui_type.controller
+    end
+end
+
+function at_gui.is_floating(pdata)
+    return pdata.settings.gui_location == "floating"
+end
+
+function at_gui.get_relative_anchor(pdata)
+    local position = defines.relative_gui_position.right
+    if pdata.settings.gui_location == "attached-left" then
+        position = defines.relative_gui_position.left
+    end
+    return {
+        gui = defines.relative_gui_type.controller_gui,
+        position = position,
+    }
+end
+
+function at_gui.set_gui_location(player, location)
+    player.mod_settings["autotrash_gui_location"] = {value = location}
+end
+
+function at_gui.apply_collapsed(pdata)
+    local main = pdata.gui.main
+    if not (main and main.body and main.body.valid and main.window and main.window.valid) then return end
+    local visible = not pdata.flags.main_collapsed
+    main.body.visible = visible
+    if not at_gui.is_floating(pdata) then
+        local style = main.window.style
+        local expanded_height = pdata.settings.rows * 40 + constants.gui_dimensions.window
+        if visible then
+            style.vertically_stretchable = true
+            style.height = expanded_height
+            style.maximal_height = expanded_height
+            style.bottom_padding = 4
+            style.top_padding = 4
+        else
+            -- Title-bar strip only; stretchable left a tall empty frame
+            style.vertically_stretchable = false
+            style.horizontally_stretchable = false
+            style.height = 40
+            style.maximal_height = 40
+            style.bottom_padding = 0
+            style.top_padding = 0
+        end
+    end
+    if main.collapse_button and main.collapse_button.valid then
+        for k, v in pairs(collapse_sprites[visible]) do
+            main.collapse_button[k] = v
+        end
+        main.collapse_button.tooltip = visible and {"at-gui.collapse"} or {"at-gui.expand"}
+    end
+end
+
+function at_gui.refresh_main_content(player, pdata)
+    at_gui.adjust_slots(pdata)
+    at_gui.update_buttons(pdata)
+    at_gui.update_button_styles(player, pdata)
+    at_gui.update_options(pdata)
+    at_gui.update_sliders(pdata)
+    at_gui.update_presets(player, pdata)
+end
 
 local function import_presets(player, pdata, add_presets, stack)
     if stack and stack.valid_for_read then
@@ -337,6 +416,8 @@ at_gui.handlers.main = {
     end,
     pin_button = function(e)
         local pdata = e.pdata
+        if not at_gui.is_floating(pdata) then return end
+        if not (pdata.gui.main.pin_button and pdata.gui.main.pin_button.valid) then return end
         if pdata.flags.pinned then
             pdata.gui.main.pin_button.style = "frame_action_button"
             pdata.gui.main.pin_button.sprite = "at_pin_white"
@@ -351,11 +432,28 @@ at_gui.handlers.main = {
             e.player.opened = nil
         end
     end,
+    collapse_button = function(e)
+        local pdata = e.pdata
+        pdata.flags.main_collapsed = not pdata.flags.main_collapsed
+        at_gui.apply_collapsed(pdata)
+    end,
+    undock_button = function(e)
+        e.pdata.flags.gui_hidden = false
+        e.pdata.flags.main_collapsed = false
+        at_gui.set_gui_location(e.player, "floating")
+    end,
+    dock_button = function(e)
+        e.pdata.flags.gui_hidden = false
+        at_gui.set_gui_location(e.player, "attached-right")
+        if e.player.character then
+            open_controller_gui(e.player)
+        end
+    end,
     close_button = function(e)
         at_gui.close(e.player, e.pdata)
     end,
     window = function(e)
-        if not e.pdata.flags.pinned then
+        if at_gui.is_floating(e.pdata) and not e.pdata.flags.pinned then
             at_gui.close(e.player, e.pdata)
         end
     end,
@@ -1117,6 +1215,14 @@ end
 
 function at_gui.create_main_window(player, pdata)
     if not player.character then return end
+    player_data.ensure_gui_flags(pdata)
+    if not at_gui.is_floating(pdata) and pdata.flags.gui_hidden then
+        return
+    end
+    if pdata.gui.main and pdata.gui.main.window and pdata.gui.main.window.valid then
+        pdata.gui.main.window.destroy()
+    end
+
     local flags = pdata.flags
     pdata.selected = false
     local btns = math.max(40, pdata.config_tmp.max_slot)
@@ -1124,29 +1230,56 @@ function at_gui.create_main_window(player, pdata)
     local scale = player.display_scale
     local pin_sprite = flags.pinned and "at_pin_black" or "at_pin_white"
     local gui_dimensions = constants.gui_dimensions
-    local gui_data = gui.build(player.gui.screen,{
-        {type = "frame",
-            style_mods = {
-                maximal_width = (resolution.width / scale),
-                maximal_height = (resolution.height / scale) * 0.97,
-                height = pdata.settings.rows * 40 + gui_dimensions.window,
-            },
-            direction = "vertical",
-            actions = {on_closed = {gui = "main", action = "window"}},
-            ref = {"main", "window"},
-            children = {
-                {type = "flow", ref = {"main", "titlebar"}, children = {
-                    {type = "label", style = "frame_title", caption = {"mod-name.AutoTrash"}, elem_mods = {ignored_by_interaction = true}},
-                    {type = "empty-widget", style = "flib_titlebar_drag_handle", elem_mods = {ignored_by_interaction = true}},
-                    gui_util.frame_action_button(pin_sprite, "at_pin_black",
-                        {gui = "main", action = "pin_button"},
-                        {"main", "pin_button"}, {tooltip={"at-gui.keep-open"}}
-                    ),
-                    gui_util.frame_action_button("utility/close", "utility/close_black",
-                        {gui = "main", action = "close_button"}
-                    )
-                }},
-                {type = "flow", direction = "horizontal", style = "inset_frame_container_horizontal_flow", children = {
+    local floating = at_gui.is_floating(pdata)
+    local content_visible = floating or not flags.main_collapsed
+    local collapse = collapse_sprites[content_visible]
+
+    local titlebar_children = {
+        {type = "label", style = "frame_title", caption = {"mod-name.AutoTrash"}, elem_mods = {ignored_by_interaction = true}},
+    }
+    if floating then
+        titlebar_children[#titlebar_children + 1] = {
+            type = "empty-widget", style = "flib_titlebar_drag_handle",
+            elem_mods = {ignored_by_interaction = true},
+        }
+        titlebar_children[#titlebar_children + 1] = gui_util.frame_action_button(pin_sprite, "at_pin_black",
+            {gui = "main", action = "pin_button"},
+            {"main", "pin_button"}, {tooltip = {"at-gui.keep-open"}}
+        )
+        titlebar_children[#titlebar_children + 1] = gui_util.frame_action_button("utility/export_slot", "utility/export_slot",
+            {gui = "main", action = "dock_button"},
+            {"main", "dock_button"}, {tooltip = {"at-gui.dock"}}
+        )
+    else
+        titlebar_children[#titlebar_children + 1] = gui_util.pushers.horizontal
+        titlebar_children[#titlebar_children + 1] = gui_util.frame_action_button(collapse.sprite, collapse.hovered_sprite,
+            {gui = "main", action = "collapse_button"},
+            {"main", "collapse_button"}, {
+                tooltip = content_visible and {"at-gui.collapse"} or {"at-gui.expand"},
+                clicked_sprite = collapse.clicked_sprite,
+            }
+        )
+        titlebar_children[#titlebar_children + 1] = gui_util.frame_action_button("utility/export_slot", "utility/export_slot",
+            {gui = "main", action = "undock_button"},
+            {"main", "undock_button"}, {tooltip = {"at-gui.undock"}}
+        )
+    end
+    titlebar_children[#titlebar_children + 1] = gui_util.frame_action_button("utility/close", "utility/close_black",
+        {gui = "main", action = "close_button"}
+    )
+
+    local root = {
+        type = "frame",
+        name = "autotrash_main",
+        style_mods = {},
+        direction = "vertical",
+        ref = {"main", "window"},
+        children = {
+            {type = "flow", ref = {"main", "titlebar"}, children = titlebar_children},
+            {type = "flow", direction = "horizontal", style = "inset_frame_container_horizontal_flow",
+                ref = {"main", "body"},
+                elem_mods = {visible = content_visible},
+                children = {
                     {type = "frame", style = "inside_shallow_frame", direction = "vertical", children = {
                         {type = "frame", style = "subheader_frame", children={
                             {type = "label", style = "subheader_caption_label", caption = {"at-gui.logistics-configuration"}},
@@ -1256,21 +1389,47 @@ function at_gui.create_main_window(player, pdata)
                             }},
                         }}
                     }}
-                }}
+                }
             }
-        },
-    })
-    gui_data.main.titlebar.drag_target = gui_data.main.window
-    gui_data.main.window.force_auto_center()
-    gui_data.main.window.visible = false
+        }
+    }
+
+    if floating then
+        root.style_mods.height = pdata.settings.rows * 40 + gui_dimensions.window
+        root.style_mods.maximal_width = (resolution.width / scale)
+        root.style_mods.maximal_height = (resolution.height / scale) * 0.97
+        root.actions = {on_closed = {gui = "main", action = "window"}}
+    else
+        root.anchor = at_gui.get_relative_anchor(pdata)
+        root.style_mods.maximal_height = pdata.settings.rows * 40 + gui_dimensions.window
+        -- Only stretch when expanded; collapsed height is applied in apply_collapsed
+        root.style_mods.vertically_stretchable = content_visible
+        if not content_visible then
+            root.style_mods.height = 40
+            root.style_mods.maximal_height = 40
+        end
+    end
+
+    local parent = floating and player.gui.screen or player.gui.relative
+    local gui_data = gui.build(parent, {root})
 
     pdata.gui.main = gui_data.main
     pdata.gui.sliders = gui_data.sliders
     pdata.gui.presets = gui_data.presets
     pdata.gui.networks = gui_data.networks
     pdata.gui.options = gui_data.options
-    if pdata.flags.pinned then
-        pdata.gui.main.pin_button.style = "flib_selected_frame_action_button"
+
+    if floating then
+        gui_data.main.titlebar.drag_target = gui_data.main.window
+        gui_data.main.window.force_auto_center()
+        gui_data.main.window.visible = false
+        if pdata.flags.pinned and pdata.gui.main.pin_button then
+            pdata.gui.main.pin_button.style = "flib_selected_frame_action_button"
+        end
+    else
+        pdata.flags.gui_open = true
+        player.set_shortcut_toggled("autotrash-toggle-gui", true)
+        at_gui.apply_collapsed(pdata)
     end
     pdata.selected = false
     at_gui.adjust_slots(pdata)
@@ -1535,67 +1694,92 @@ function at_gui.destroy(player, pdata)
     player.set_shortcut_toggled("autotrash-toggle-gui", false)
 end
 
-function at_gui.open(player, pdata)
+function at_gui.open(player, pdata, open_controller)
     if not pdata.flags.can_open_gui then return end
     if not player.character then
         player.print{"at-message.no-character"}
         at_gui.close(player, pdata, true)
         return
     end
+    player_data.ensure_gui_flags(pdata)
+    pdata.flags.gui_hidden = false
+
     local window_frame = pdata.gui.main.window
     if not (window_frame and window_frame.valid) then
         if window_frame then
             player.print{"at-message.invalid-gui"}
         end
         at_gui.destroy(player, pdata)
+        pdata.flags.gui_hidden = false
         at_gui.create_main_window(player, pdata)
         window_frame = pdata.gui.main.window
     end
-    window_frame.visible = true
-    window_frame.bring_to_front()
-    pdata.flags.gui_open = true
-    if not pdata.flags.pinned then
-        player.opened = window_frame
-    end
-    player.set_shortcut_toggled("autotrash-toggle-gui", true)
+    if not (window_frame and window_frame.valid) then return end
 
-    at_gui.adjust_slots(pdata)
-    at_gui.update_buttons(pdata)
-    at_gui.update_button_styles(player, pdata)
-    at_gui.update_options(pdata)
-    at_gui.update_sliders(pdata)
-    at_gui.update_presets(player, pdata)
+    if at_gui.is_floating(pdata) then
+        window_frame.visible = true
+        window_frame.bring_to_front()
+        if not pdata.flags.pinned then
+            player.opened = window_frame
+        end
+    elseif open_controller and not player.opened_self then
+        open_controller_gui(player)
+    end
+
+    pdata.flags.gui_open = true
+    player.set_shortcut_toggled("autotrash-toggle-gui", true)
+    at_gui.refresh_main_content(player, pdata)
 end
 
 function at_gui.close(player, pdata, no_reset)
     if pdata.closing then return end--no need to do it twice if not pinned and the close button is used
-    local window_frame = pdata.gui.main.window
-    if not (window_frame and window_frame.valid) then
-        if window_frame then
-            player.print{"at-message.invalid-gui"}
+    player_data.ensure_gui_flags(pdata)
+    local floating = at_gui.is_floating(pdata)
+    local window_frame = pdata.gui.main and pdata.gui.main.window
+
+    if floating then
+        if not (window_frame and window_frame.valid) then
+            if window_frame then
+                player.print{"at-message.invalid-gui"}
+            end
+            at_gui.destroy(player, pdata)
+            at_gui.create_main_window(player, pdata)
+            window_frame = pdata.gui.main.window
         end
-        at_gui.destroy(player, pdata)
-        at_gui.create_main_window(player, pdata)
-        window_frame = pdata.gui.main.window
+        if window_frame and window_frame.valid then
+            window_frame.visible = false
+        end
+        if player.opened == window_frame then
+            pdata.closing = true
+            player.opened = nil
+            pdata.closing = nil
+        end
+    else
+        pdata.flags.gui_hidden = true
+        if window_frame and window_frame.valid then
+            window_frame.destroy()
+        end
+        pdata.gui.main = {}
+        pdata.gui.sliders = {}
+        pdata.gui.options = {}
+        pdata.gui.presets = {}
+        pdata.gui.networks = {}
     end
-    if window_frame and window_frame.valid then
-        window_frame.visible = false
-    end
+
     pdata.flags.gui_open = false
     pdata.selected = false
-    if player.opened == window_frame then
-        pdata.closing = true
-        player.opened = nil
-        pdata.closing = nil
-    end
-    if pdata.gui.networks.window and pdata.gui.presets.window then
+    if floating and pdata.gui.networks.window and pdata.gui.presets.window then
         pdata.gui.networks.window.visible = false
         pdata.gui.presets.window.visible = true
-        pdata.gui.main.network_edit_button.style = "tool_button"
+        if pdata.gui.main.network_edit_button then
+            pdata.gui.main.network_edit_button.style = "tool_button"
+        end
     end
     if not no_reset and pdata.settings.reset_on_close then
         pdata.config_tmp = at_util.copy_preset(pdata.config_new)
-        pdata.gui.main.reset_button.enabled = false
+        if floating and pdata.gui.main.reset_button and pdata.gui.main.reset_button.valid then
+            pdata.gui.main.reset_button.enabled = false
+        end
         pdata.dirty = false
     end
     player.set_shortcut_toggled("autotrash-toggle-gui", false)
@@ -1603,23 +1787,54 @@ end
 
 function at_gui.recreate(player, pdata, no_spider)
     local was_open = pdata.flags.gui_open
+    local was_hidden = pdata.flags.gui_hidden
     at_gui.destroy(player, pdata)
+    pdata.flags.gui_hidden = was_hidden
     if not no_spider then
         spider_gui.init(player, pdata)
     end
-    if was_open then
-        at_gui.open(player, pdata)
+    if at_gui.is_floating(pdata) then
+        if was_open then
+            pdata.flags.gui_hidden = false
+            at_gui.open(player, pdata)
+        else
+            player.set_shortcut_toggled("autotrash-toggle-gui", false)
+            at_gui.create_main_window(player, pdata)
+        end
     else
-        player.set_shortcut_toggled("autotrash-toggle-gui", false)
-        at_gui.create_main_window(player, pdata)
+        if not was_hidden then
+            at_gui.create_main_window(player, pdata)
+            if was_open then
+                at_gui.refresh_main_content(player, pdata)
+            end
+        else
+            player.set_shortcut_toggled("autotrash-toggle-gui", false)
+        end
     end
 end
 
 function at_gui.toggle(player, pdata)
-    if pdata.flags.gui_open then
-        at_gui.close(player, pdata)
-    else
-        at_gui.open(player, pdata)
+    player_data.ensure_gui_flags(pdata)
+    if at_gui.is_floating(pdata) then
+        if pdata.flags.gui_open then
+            at_gui.close(player, pdata)
+        else
+            at_gui.open(player, pdata)
+        end
+        return
     end
+
+    local window = pdata.gui.main and pdata.gui.main.window
+    local has_window = window and window.valid
+    if pdata.flags.gui_hidden or not has_window then
+        at_gui.open(player, pdata, true)
+        return
+    end
+    if not player.opened_self then
+        open_controller_gui(player)
+        return
+    end
+    pdata.flags.main_collapsed = not pdata.flags.main_collapsed
+    at_gui.apply_collapsed(pdata)
 end
 return at_gui

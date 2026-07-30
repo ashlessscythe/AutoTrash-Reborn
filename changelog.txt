@@ -1,4 +1,11 @@
 ---------------------------------------------------------------------------------------------------
+Version: 6.0.1
+Date: 2026-07-29
+  Features:
+    - Dock Auto Trash beside the character inventory (gui.relative), with collapse/expand.
+    - New setting "GUI location": attached right (default), attached left, or floating.
+    - Dock/undock title-bar controls; shortcut opens the character GUI when docked.
+---------------------------------------------------------------------------------------------------
 Version: 6.0.0
 Date: 2026-07-29
   Features:

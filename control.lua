@@ -144,6 +144,16 @@ gui.hook_events(function(e)
         end
         local hide = not e.entity.get_logistic_point(defines.logistic_member_index.spidertron_requester)
         spider_gui.update(player, pdata, hide)
+    elseif e.name == defines.events.on_gui_opened and e.gui_type == defines.gui_type.controller then
+        player_data.ensure_gui_flags(pdata)
+        if pdata.flags.can_open_gui and player.character and not at_gui.is_floating(pdata) and not pdata.flags.gui_hidden then
+            if not (pdata.gui.main.window and pdata.gui.main.window.valid) then
+                at_gui.create_main_window(player, pdata)
+            end
+            if pdata.flags.gui_open then
+                at_gui.refresh_main_content(player, pdata)
+            end
+        end
     end
 end)
 
@@ -491,12 +501,19 @@ local function on_runtime_mod_setting_changed(e)
             local table_height = pdata.settings.rows * 40
             local gui_data = pdata.gui.main
             gui_data.slot_table.style.minimal_height = table_height
-            gui_data.window.style.height = table_height + constants.gui_dimensions.window
-            gui_data.window.force_auto_center()
+            local window_height = table_height + constants.gui_dimensions.window
+            if at_gui.is_floating(pdata) then
+                gui_data.window.style.height = window_height
+                gui_data.window.force_auto_center()
+            else
+                gui_data.window.style.maximal_height = window_height
+            end
             at_gui.adjust_slots(pdata)
         else
             at_gui.recreate(player, pdata)
         end
+    elseif e.setting == "autotrash_gui_location" then
+        at_gui.recreate(player, pdata)
     elseif e.setting == "autotrash_status_count" or e.setting == "autotrash_status_columns" then
         at_gui.init_status_display(player, pdata, true)
     end
@@ -640,7 +657,10 @@ local at_commands = {
     end,
 
     mess_up = function(player)
-        player.gui.relative.clear()
+        local main = player.gui.relative.autotrash_main
+        if main and main.valid then
+            main.destroy()
+        end
         player.gui.screen.clear()
     end,
 }

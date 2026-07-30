@@ -253,6 +253,11 @@ local migrations = {
             pdata.config_tmp = pdata.config_tmp or {config = {}, by_name = {}, c_requests = 0, max_slot = 0}
         end
     end,
+    ["6.0.1"] = function()
+        for _, pdata in pairs(storage._pdata) do
+            player_data.ensure_gui_flags(pdata)
+        end
+    end,
 }
 
 return migrations

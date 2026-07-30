@@ -15,6 +15,8 @@ function player_data.init(player_index)
             gui_open = false,
             dirty = false,
             pinned = true,
+            main_collapsed = false,
+            gui_hidden = false,
             status_display_open = false,
             trash_above_requested = false,
             trash_unrequested = false,
@@ -67,13 +69,25 @@ function player_data.update_settings(player, pdata)
         columns = player_settings["autotrash_gui_displayed_columns"].value,
         rows = player_settings["autotrash_gui_rows_before_scroll"].value,
         show_button = player_settings["autotrash_show_button"].value,
+        gui_location = player_settings["autotrash_gui_location"].value,
     }
     pdata.settings = settings
+end
+
+function player_data.ensure_gui_flags(pdata)
+    local flags = pdata.flags
+    if flags.main_collapsed == nil then
+        flags.main_collapsed = false
+    end
+    if flags.gui_hidden == nil then
+        flags.gui_hidden = false
+    end
 end
 
 function player_data.refresh(player, pdata)
     pdata.flags.can_open_gui = player.force.character_logistic_requests
     player.set_shortcut_available("autotrash-toggle-gui", player.force.character_logistic_requests)
+    player_data.ensure_gui_flags(pdata)
     player_data.update_settings(player, pdata)
 end
 

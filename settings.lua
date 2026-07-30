@@ -19,6 +19,14 @@ data:extend({
         order = "a"
     },
     {
+        type = "string-setting",
+        name = "autotrash_gui_location",
+        setting_type = "runtime-per-user",
+        default_value = "attached-right",
+        allowed_values = {"attached-right", "attached-left", "floating"},
+        order = "a1"
+    },
+    {
         type = "bool-setting",
         name = "autotrash_trash_equals_requests",
         setting_type = "runtime-per-user",
